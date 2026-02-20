@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kde-weather"
+version = "0.1.0"
+description = "KDE Plasma weather app with Open-Meteo API"
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6>=6.6",
+    "requests>=2.31",
+]
+
+[project.scripts]
+kde-weather = "kde_weather.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

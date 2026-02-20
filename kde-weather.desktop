@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=KDE Weather
+Comment=Weather forecast with Open-Meteo API
+Exec=kde-weather
+Icon=weather-clear
+Terminal=false
+Categories=Utility;
+Keywords=weather;forecast;temperature;
