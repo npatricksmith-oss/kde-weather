@@ -24,14 +24,7 @@ A standalone Qt weather app for KDE Plasma. Displays hourly charts and daily for
 - Weather icons have a contrast background circle (visible on dark surfaces)
 - install.sh uses the project venv (not pip --user), creates ~/.local/bin/kde-weather wrapper and installs .desktop file
 
-**Not yet implemented (from issue-tracker.md):**
-- A3: Alternating date shading bands inside chart area
-- B2: Daily forecast icon reflects dominant weather for the day (currently uses daily weather_code which may be the last hour's code)
-- B3: Click a day card to expand a written forecast description below
-- B4: Snow-day probability shown in icon area when > 10%
-- General 1: Help page (appears when a help icon is clicked, top right)
-- General 2: API rate limit documentation + refresh interval options adjusted accordingly
-- General 4: Hazardous weather / NWS advisories button (requires a separate API — Open-Meteo does not provide alerts)
+**Open issues and feature requests:** See `issues.md` for the full backlog.
 
 ## Tech Stack
 
@@ -165,28 +158,9 @@ cd ~/1_Projects/Software/kde-weather
 
 **System packages required:** `pyside6 qt6-charts python-requests` (via pacman)
 
-## Open Items from Issue Tracker
+## TODO
 
-### A3 — Date shading bands on charts
-Alternating background rectangles inside each `ChartView` for each calendar day. Requires calculating pixel coordinates of midnight transitions from the `DateTimeAxis` range — doable but needs QtCharts internals (`ChartView.mapToPosition()`).
-
-### B2 — Daily forecast icon reflects dominant weather
-The daily model already receives `weather_code` from Open-Meteo's daily summary endpoint, which should represent the dominant condition. Worth verifying the API returns the right code vs the last-hour code.
-
-### B3 — Click day card to expand written forecast
-Add a `MouseArea` to `DayCard`, emit a signal with the date/weather-code, and show a description panel in `DailyView`. The `WMO_DESCRIPTIONS` dict already exists in `current_conditions.py` — expose it or duplicate to QML.
-
-### B4 — Snow-day probability
-Heuristic: combine `snowfall_sum` and `precipitation_probability` for the day. Show a small label (e.g., "❄ Snow day?") in the icon area of `DayCard` when a threshold is crossed.
-
-### General 1 — Help page
-Add a `?` `ToolButton` in the main toolbar that opens a `Dialog` or second `Drawer` with usage info, keyboard shortcuts, API credit.
-
-### General 2 — API usage / refresh intervals
-Open-Meteo is free and has no hard rate limit for reasonable usage (their docs suggest ≤10,000 calls/day for free tier). The current refresh options (15/30/60 min) are appropriate. Minimum sensible interval is 15 min since forecasts don't update more frequently. No changes needed — just document this in the help page.
-
-### General 4 — Hazardous weather / NWS advisories
-Open-Meteo does not provide weather alerts. The NWS Alerts API (`https://api.weather.gov/alerts/active`) is free for US locations, no key required. Would need a new API module + worker + UI surface (e.g., a banner or dialog).
+- Add a LICENSE file (decide on license — GPL/MIT/etc.)
 
 ## Future API Considerations
 

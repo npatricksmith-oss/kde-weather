@@ -17,9 +17,7 @@ env/
 .vscode/
 *.swp
 *.swo
+*.kate-swp
 
 # OS
 .DS_Store
-
-# Local config (user's personal settings — not part of the project)
-~/.config/kde-weather/
