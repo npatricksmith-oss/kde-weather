@@ -37,5 +37,10 @@ PROBLEM: keyboard down/up should advance page down or up to next full graph.
 ACTIONS: Fix
 AI COMMENTS: Previous scroll step was 200 px (arbitrary). WeatherChart panels are 320 px tall with 8 px ColumnLayout spacing between them, so one "chart page" = 328 px. Changed Keys.onUpPressed / Keys.onDownPressed to scroll by chartPageHeight (328) instead of 200. This advances the viewport by exactly one chart panel so the next chart appears flush at the top after one keypress. (HourlyView.qml)
 
-
 5. Provide a button in the banner (right corner) that will give hazardous weather/advisories etc.
+STATUS: OPEN
+PROBLEM: A button should exist to access hazardous weather 
+6. When window is active, always allow keyboard navigation
+8. snowfall/snowdepth graphs may get decimals.
+9. Precipitation graph: Probability percentage Line changes colors for different Precipitation patterns. e.g. Line changes from Rain (blue) to snow (white), sleet (purple), freezing rain (pink) where appropriate depending on data. Precipitation amount (inches) shown in scaled bar graphs at appropriate hours with labels at top of each bar. Y-axis of graph remains percentage, and bar graph y values are their own scale not coupled with overall Y-axis.
+10. App doesn't start when launched from icon. 

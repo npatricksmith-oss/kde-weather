@@ -157,20 +157,24 @@ ScrollView {
                 lineColor: Theme.chartRain
             }
 
+            // "Snowfall" = inches of new snow that fell during each hour
+            // (a rate from Open-Meteo's snowfall field, converted to inches/hr)
             WeatherChart {
                 id: snowfallChart
                 Layout.fillWidth: true
                 visible: root.enabledElements["snowfall"] || false
-                title: "Snowfall"
-                unit: "in"
+                title: "Snowfall \u2014 new snow per hour"
+                unit: "in/hr"
                 lineColor: Theme.chartSnowfall
             }
 
+            // "Snow Depth" = total inches of snow currently on the ground
+            // (the accumulation / snowpack at each hour, Open-Meteo snow_depth)
             WeatherChart {
                 id: snowDepthChart
                 Layout.fillWidth: true
                 visible: root.enabledElements["snow_depth"] || false
-                title: "Snow Depth"
+                title: "Snow Depth \u2014 total on ground"
                 unit: "in"
                 lineColor: Theme.chartSnowDepth
             }

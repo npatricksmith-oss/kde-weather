@@ -155,7 +155,7 @@ class AppController(QObject):
 
         self._hourly_model.update(hourly)
         self._daily_model.update(daily)
-        self._current.update_from_hourly(hourly)
+        self._current.update_from_hourly(hourly, self._hourly_model.start_idx)
 
         self._loading = False
         self._last_update = datetime.now().strftime("%I:%M %p")

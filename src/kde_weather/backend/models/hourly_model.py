@@ -20,6 +20,8 @@ dataVersion / dataVersionChanged:
   in a declarative binding world" in Qt Quick.
 """
 
+from datetime import datetime, timezone
+
 from PySide6.QtCore import QAbstractListModel, Qt, QModelIndex, Slot, Signal, Property
 
 
@@ -45,6 +47,7 @@ class HourlyModel(QAbstractListModel):
         super().__init__(parent)
         self._rows = []
         self._data_version = 0
+        self.start_idx = 0  # index into raw API arrays for the current hour
 
     @Property(int, notify=dataVersionChanged)
     def dataVersion(self):
@@ -97,16 +100,29 @@ class HourlyModel(QAbstractListModel):
         return None
 
     def update(self, hourly_data: dict):
-        """Replace all rows with fresh API data, capped at 48 hours.
+        """Replace all rows with fresh API data, 48 hours starting from now.
 
-        Called from AppController._on_forecast() on the main thread after
-        the worker thread delivers the API response.
+        Open-Meteo returns data from local midnight, so we skip past-hours
+        and show 48 hours of forecast beginning at the current hour.
+        Called from AppController._on_forecast() on the main thread.
         """
         self.beginResetModel()
         times = hourly_data.get("time", [])
-        count = min(len(times), 48)
+
+        # Find first time slot >= current hour so the chart's left edge is "now"
+        now_hour = datetime.now().replace(minute=0, second=0, microsecond=0)
+        self.start_idx = 0
+        for idx, t in enumerate(times):
+            try:
+                if datetime.fromisoformat(t) >= now_hour:
+                    self.start_idx = idx
+                    break
+            except (ValueError, TypeError):
+                pass
+
+        count = min(len(times) - self.start_idx, 48)
         self._rows = []
-        for i in range(count):
+        for i in range(self.start_idx, self.start_idx + count):
             row = {"time": times[i]}
             for key in [
                 "temperature_2m", "apparent_temperature", "relative_humidity_2m",
@@ -145,10 +161,18 @@ class HourlyModel(QAbstractListModel):
         }
         api_key = role_key_map.get(key, key)
         result = []
-        for i, row in enumerate(self._rows):
+        for row in self._rows:
             val = row.get(api_key)
             if val is not None:
-                result.append({"x": i, "y": float(val)})
+                time_str = row.get("time", "")
+                try:
+                    # Open-Meteo returns local time strings; .timestamp() treats
+                    # naive datetimes as local time, matching the system clock.
+                    # DateTimeAxis in QML expects milliseconds since Unix epoch.
+                    x_ms = int(datetime.fromisoformat(time_str).timestamp() * 1000)
+                except (ValueError, TypeError):
+                    x_ms = 0
+                result.append({"x": x_ms, "y": float(val)})
         return result
 
     @Slot(result=list)

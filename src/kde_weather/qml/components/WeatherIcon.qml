@@ -10,6 +10,11 @@ import QtQuick
 // WMO codes are not contiguous -- they jump from 3 to 45, from 77 to 80,
 // etc.  The if-chain uses <= ranges to bucket codes into weather categories.
 // Full WMO code table: https://www.nodc.noaa.gov/archive/arc0021/0002199/1.1/data/0-data/HTML/WMO-CODE/WMO4677.HTM
+//
+// font.family is set to "Noto Color Emoji" so the glyphs render with their
+// natural colors (yellow sun, white clouds, blue rain, etc.) rather than as
+// monochrome black glyphs.  On Arch Linux this requires the noto-fonts-emoji
+// package (installed by install.sh).
 
 Item {
     id: root
@@ -19,9 +24,24 @@ Item {
     width: size
     height: size
 
+    // Semi-transparent circle behind emoji so glyphs remain visible on any
+    // background color (dark surfaces can make some emoji near-invisible).
+    Rectangle {
+        anchors.centerIn: parent
+        width: root.size * 1.15
+        height: root.size * 1.15
+        radius: width / 2
+        color: "#28ffffff"
+        border.color: "#18ffffff"
+        border.width: 1
+    }
+
     Text {
         anchors.centerIn: parent
-        font.pixelSize: root.size * 0.8
+        // Noto Color Emoji forces the OS emoji font to render in full color.
+        // Without this, Qt may use a monochrome system font for the glyphs.
+        font.family: "Noto Color Emoji"
+        font.pixelSize: root.size * 0.75
         text: {
             var code = root.weatherCode;
             if (code === 0) return "\u2600";        // Clear sky - sun

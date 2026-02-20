@@ -74,21 +74,25 @@ class CurrentConditions(QObject):
     def cloudCover(self):
         return self._cloud_cover
 
-    def update_from_hourly(self, hourly: dict):
-        """Extract index-0 values from each hourly array for current conditions."""
-        def _get(key, idx=0, default=0):
-            vals = hourly.get(key, [])
-            return vals[idx] if idx < len(vals) else default
+    def update_from_hourly(self, hourly: dict, start_idx: int = 0):
+        """Extract values at start_idx from each hourly array for current conditions.
 
-        self._temp = float(_get("temperature_2m", 0, 0))
-        self._feels_like = float(_get("apparent_temperature", 0, 0))
-        self._humidity = int(_get("relative_humidity_2m", 0, 0))
-        self._wind_speed = float(_get("wind_speed_10m", 0, 0))
-        self._wind_gusts = float(_get("wind_gusts_10m", 0, 0))
-        self._wind_dir = int(_get("wind_direction_10m", 0, 0))
-        self._weather_code = int(_get("weather_code", 0, 0))
-        self._precip_prob = int(_get("precipitation_probability", 0, 0))
-        self._cloud_cover = int(_get("cloud_cover", 0, 0))
+        start_idx is the first hour >= now as computed by HourlyModel, so we
+        read the actual current hour rather than midnight (index 0).
+        """
+        def _get(key, default=0):
+            vals = hourly.get(key, [])
+            return vals[start_idx] if start_idx < len(vals) else default
+
+        self._temp = float(_get("temperature_2m", 0))
+        self._feels_like = float(_get("apparent_temperature", 0))
+        self._humidity = int(_get("relative_humidity_2m", 0))
+        self._wind_speed = float(_get("wind_speed_10m", 0))
+        self._wind_gusts = float(_get("wind_gusts_10m", 0))
+        self._wind_dir = int(_get("wind_direction_10m", 0))
+        self._weather_code = int(_get("weather_code", 0))
+        self._precip_prob = int(_get("precipitation_probability", 0))
+        self._cloud_cover = int(_get("cloud_cover", 0))
         self._description = WMO_DESCRIPTIONS.get(self._weather_code, "Unknown")
         self._notify()
 

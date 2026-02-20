@@ -200,8 +200,8 @@ Rectangle {
                         { key: "cloud_cover", label: "Cloud Cover" },
                         { key: "precipitation_probability", label: "Precip Probability" },
                         { key: "rain", label: "Rain Amounts" },
-                        { key: "snowfall", label: "Snowfall" },
-                        { key: "snow_depth", label: "Snow Depth" },
+                        { key: "snowfall", label: "Snowfall (new/hr)" },
+                        { key: "snow_depth", label: "Snow Depth (total on ground)" },
                     ]
 
                     CheckBox {
