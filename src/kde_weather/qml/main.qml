@@ -28,7 +28,8 @@ ApplicationWindow {
     // --- Header toolbar ---
     header: ToolBar {
         background: Rectangle { color: Theme.surface }
-        height: 48
+        // Taller than the legacy 48px to fit 2x larger fonts
+        height: 64
 
         RowLayout {
             anchors.fill: parent
@@ -40,7 +41,7 @@ ApplicationWindow {
             // auto-updates when locations are added/removed
             ComboBox {
                 id: locationCombo
-                Layout.preferredWidth: 200
+                Layout.preferredWidth: 260
                 model: app.locationModel
                 textRole: "name"
                 currentIndex: app.settings.activeLocationIndex
@@ -56,7 +57,8 @@ ApplicationWindow {
                 contentItem: Text {
                     text: locationCombo.displayText
                     color: Theme.text
-                    font.pixelSize: 13
+                    // 2x the legacy 13px body size
+                    font.pixelSize: Theme.fontBody
                     verticalAlignment: Text.AlignVCenter
                     leftPadding: Theme.spacingMedium
                     elide: Text.ElideRight
@@ -67,7 +69,8 @@ ApplicationWindow {
             Text {
                 text: "No locations configured"
                 color: Theme.textSecondary
-                font.pixelSize: 13
+                // 2x the legacy 13px body size
+                font.pixelSize: Theme.fontBody
                 visible: app.locationModel.rowCount() === 0
             }
 
@@ -77,17 +80,18 @@ ApplicationWindow {
             BusyIndicator {
                 running: app.loading
                 visible: app.loading
-                Layout.preferredWidth: 24
-                Layout.preferredHeight: 24
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
             }
 
             // Error message from failed API calls
             Text {
                 text: app.error
                 color: Theme.error
-                font.pixelSize: 11
+                // 2x the legacy 11px secondary size
+                font.pixelSize: Theme.fontSecondary
                 visible: app.error !== ""
-                Layout.maximumWidth: 200
+                Layout.maximumWidth: 260
                 elide: Text.ElideRight
             }
 
@@ -95,21 +99,22 @@ ApplicationWindow {
             Text {
                 text: app.lastUpdate ? "Updated " + app.lastUpdate : ""
                 color: Theme.textDisabled
-                font.pixelSize: 11
+                // 2x the legacy 11px secondary size
+                font.pixelSize: Theme.fontSecondary
                 visible: app.lastUpdate !== ""
             }
 
             // Manual refresh button
             ToolButton {
                 text: "\u21bb"  // Unicode clockwise arrows
-                font.pixelSize: 18
                 onClicked: app.refresh()
                 enabled: !app.loading
 
                 contentItem: Text {
                     text: parent.text
                     color: Theme.text
-                    font.pixelSize: 18
+                    // 2x the legacy 18px icon size
+                    font.pixelSize: 36
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -122,13 +127,13 @@ ApplicationWindow {
             // Settings gear -- opens the drawer
             ToolButton {
                 text: "\u2699"  // Unicode gear
-                font.pixelSize: 20
                 onClicked: settingsDrawer.open()
 
                 contentItem: Text {
                     text: parent.text
                     color: Theme.text
-                    font.pixelSize: 20
+                    // 2x the legacy 20px icon size
+                    font.pixelSize: 40
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -156,63 +161,119 @@ ApplicationWindow {
         Text {
             text: "Open Settings to add a location"
             color: Theme.textSecondary
-            font.pixelSize: 16
+            // 2x the legacy 16px title size
+            font.pixelSize: Theme.fontTitle
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: 100
             visible: app.settings.activeLocationIndex < 0
         }
 
-        // Tab bar for switching between hourly and daily views
+        // Tab bar for switching between hourly and daily views.
+        //
+        // Each TabButton fills exactly half the bar (width: tabBar.width / 2)
+        // to prevent overlap.  Previously, width: implicitWidth was used, but
+        // with a custom contentItem the implicitWidth is unreliable and the two
+        // buttons can overlap or leave gaps.
+        //
+        // Visual hierarchy: the bar sits on Theme.surface; the active tab
+        // is Theme.surfaceAlt (lighter) with an accent-colored bottom indicator;
+        // the inactive tab is Theme.surface (matching the bar background, no
+        // indicator) so the active one pops without needing a hard border.
         TabBar {
             id: tabBar
             Layout.fillWidth: true
+            // Explicit height prevents the bar from collapsing to its default
+            // Qt implicitHeight (48 px), which is too cramped for a 26 px font.
+            height: 54
             visible: app.settings.activeLocationIndex >= 0
 
-            background: Rectangle { color: "transparent" }
+            // Visible card behind both tabs so there is a clear "tab strip" region
+            background: Rectangle {
+                color: Theme.surface
+                radius: Theme.radiusSmall
+            }
 
             TabButton {
                 text: "48-Hour Hourly"
-                width: implicitWidth
+                // Equal split: each of the two tabs owns exactly half the bar.
+                // This replaces the old width: implicitWidth which caused overlap.
+                width: tabBar.width / 2
+                height: tabBar.height
                 contentItem: Text {
                     text: parent.text
                     color: tabBar.currentIndex === 0 ? Theme.accent : Theme.textSecondary
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.fontBody
                     font.bold: tabBar.currentIndex === 0
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
                 background: Rectangle {
-                    color: tabBar.currentIndex === 0 ? Theme.surfaceAlt : "transparent"
+                    // Active: surfaceAlt (lighter than bar) so it stands out clearly.
+                    // Inactive: surface (same as bar) so inactive tabs are flush.
+                    color: tabBar.currentIndex === 0 ? Theme.surfaceAlt : Theme.surface
                     radius: Theme.radiusSmall
+
+                    // Accent-colored bottom indicator line for the active tab.
+                    // Only rendered when this tab is active; otherwise invisible.
+                    Rectangle {
+                        visible: tabBar.currentIndex === 0
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.leftMargin: Theme.spacingSmall
+                        anchors.rightMargin: Theme.spacingSmall
+                        height: 3
+                        radius: 2
+                        color: Theme.accent
+                    }
                 }
             }
 
             TabButton {
                 text: "7-Day Forecast"
-                width: implicitWidth
+                width: tabBar.width / 2
+                height: tabBar.height
                 contentItem: Text {
                     text: parent.text
                     color: tabBar.currentIndex === 1 ? Theme.accent : Theme.textSecondary
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.fontBody
                     font.bold: tabBar.currentIndex === 1
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
                 background: Rectangle {
-                    color: tabBar.currentIndex === 1 ? Theme.surfaceAlt : "transparent"
+                    color: tabBar.currentIndex === 1 ? Theme.surfaceAlt : Theme.surface
                     radius: Theme.radiusSmall
+
+                    Rectangle {
+                        visible: tabBar.currentIndex === 1
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.leftMargin: Theme.spacingSmall
+                        anchors.rightMargin: Theme.spacingSmall
+                        height: 3
+                        radius: 2
+                        color: Theme.accent
+                    }
                 }
             }
         }
 
-        // Tab content -- StackLayout shows one child at a time
+        // Tab content -- StackLayout shows one child at a time.
+        // When the hourly tab is selected, we force focus to the HourlyView
+        // so that Up/Down arrow keys immediately scroll without needing a click.
         StackLayout {
             currentIndex: tabBar.currentIndex
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: app.settings.activeLocationIndex >= 0
 
-            HourlyView {}
+            onCurrentIndexChanged: {
+                if (currentIndex === 0) hourlyView.forceActiveFocus()
+            }
+
+            HourlyView { id: hourlyView }
             DailyView {}
         }
     }
@@ -242,7 +303,7 @@ ApplicationWindow {
             // Drawer title bar
             Rectangle {
                 Layout.fillWidth: true
-                height: 48
+                height: 64
                 color: Theme.surface
 
                 RowLayout {
@@ -251,7 +312,8 @@ ApplicationWindow {
 
                     Text {
                         text: "Settings"
-                        font.pixelSize: 16
+                        // 2x the legacy 16px title size
+                        font.pixelSize: Theme.fontTitle
                         font.bold: true
                         color: Theme.text
                         Layout.fillWidth: true
@@ -263,7 +325,8 @@ ApplicationWindow {
                         contentItem: Text {
                             text: parent.text
                             color: Theme.text
-                            font.pixelSize: 16
+                            // 2x the legacy 16px title size
+                            font.pixelSize: Theme.fontTitle
                             horizontalAlignment: Text.AlignHCenter
                         }
                         background: Rectangle {

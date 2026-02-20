@@ -20,6 +20,9 @@ import "../components"
 // Charts that share related data (e.g. Temperature + Feels Like) are
 // combined into a single chart with primary + secondary series.  If the
 // primary is disabled but the secondary is on, a standalone chart appears.
+//
+// Keyboard scrolling: Up/Down arrow keys scroll the view when it has focus.
+// forceActiveFocus() is called from main.qml when the hourly tab is selected.
 
 ScrollView {
     id: root
@@ -30,6 +33,25 @@ ScrollView {
     property int dataVersion: hourlyModel.dataVersion
 
     contentWidth: availableWidth
+
+    // One "chart page" = WeatherChart.height (320) + ColumnLayout spacing (8).
+    // Scrolling by exactly this amount advances or retreats by one full panel,
+    // so the chart below/above lands flush at the top of the viewport.
+    readonly property int chartPageHeight: 328   // 320 chart + 8 spacing
+
+    // Accept keyboard focus so Up/Down arrows scroll the chart stack.
+    // main.qml calls forceActiveFocus() on this view when the hourly tab
+    // is selected, ensuring arrows work immediately after tab switch.
+    focus: true
+    Keys.onUpPressed: {
+        // Scroll up by one full chart panel, clamped to the top
+        contentItem.contentY = Math.max(0, contentItem.contentY - chartPageHeight)
+    }
+    Keys.onDownPressed: {
+        // Scroll down by one full chart panel, clamped to the bottom
+        var maxY = contentItem.contentHeight - height
+        contentItem.contentY = Math.min(Math.max(0, maxY), contentItem.contentY + chartPageHeight)
+    }
 
     function refreshCharts() {
         tempChart.seriesData = hourlyModel.seriesData("temperature");
@@ -48,13 +70,9 @@ ScrollView {
 
     onDataVersionChanged: refreshCharts()
 
-    Flickable {
-        contentWidth: parent.width
-        contentHeight: chartsColumn.height
-
-        ColumnLayout {
+    ColumnLayout {
             id: chartsColumn
-            width: parent.width
+            width: root.availableWidth
             spacing: Theme.spacingMedium
 
             // Temperature + Feels Like combined (when temp is on)
@@ -89,6 +107,7 @@ ScrollView {
                 lineColor: Theme.chartWindSpeed
                 secondaryTitle: "Gusts"
                 secondaryColor: Theme.chartWindGusts
+                clampMin: 0
             }
 
             // Gusts standalone
@@ -99,6 +118,7 @@ ScrollView {
                 title: "Wind Gusts"
                 unit: "mph"
                 lineColor: Theme.chartWindGusts
+                clampMin: 0
             }
 
             WeatherChart {
@@ -155,5 +175,4 @@ ScrollView {
                 lineColor: Theme.chartSnowDepth
             }
         }
-    }
 }

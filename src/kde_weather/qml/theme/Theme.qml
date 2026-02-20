@@ -32,18 +32,34 @@ QtObject {
     readonly property color error: "#da4453"         // Error text, delete buttons
     readonly property color success: "#27ae60"       // Unused currently, reserved
 
-    // Chart line colors -- chosen to be visually distinct from each other
-    // and readable against the dark surface background
-    readonly property color chartTemp: "#e74c3c"         // Red -- hot
-    readonly property color chartFeelsLike: "#e67e22"    // Orange -- warm
-    readonly property color chartHumidity: "#3498db"     // Blue -- water
-    readonly property color chartPrecipProb: "#2ecc71"   // Green
-    readonly property color chartRain: "#1abc9c"         // Teal
-    readonly property color chartSnowfall: "#9b59b6"     // Purple -- cold
-    readonly property color chartSnowDepth: "#8e44ad"    // Dark purple
-    readonly property color chartCloudCover: "#95a5a6"   // Gray -- sky
-    readonly property color chartWindSpeed: "#f39c12"    // Yellow
-    readonly property color chartWindGusts: "#d35400"    // Dark orange
+    // Chart line colors -- natural weather associations, no color reused across types.
+    // Temperature: red for temp, amber for feels-like.  Both warm tones but
+    // far enough apart in hue/brightness to be immediately distinguishable.
+    readonly property color chartTemp: "#ef5350"         // Warm red -- temperature
+    readonly property color chartFeelsLike: "#ffb300"    // Amber/gold -- body warmth (was orange #ff7043, too close to red)
+    // Wind: medium purple for wind speed, bright orchid for gusts.
+    // Same hue family but drastically different values so a quick glance tells them apart.
+    readonly property color chartWindSpeed: "#9c27b0"    // Medium purple -- wind
+    readonly property color chartWindGusts: "#e040fb"    // Bright orchid/magenta -- gusts (was dark purple #6a1b9a, too similar)
+    // Precipitation: blues (rain = deep, probability = medium)
+    readonly property color chartPrecipProb: "#1e88e5"   // Medium blue -- rain chance
+    readonly property color chartRain: "#1565c0"         // Deep blue -- actual rain
+    // Snow: near-white and light gray (natural snow colors)
+    readonly property color chartSnowfall: "#e0f4ff"     // Near-white light blue -- falling snow
+    readonly property color chartSnowDepth: "#b0bec5"    // Blue-gray -- snow on ground
+    // Humidity: greens (water vapor in air)
+    readonly property color chartHumidity: "#43a047"     // Green -- moisture
+    // Cloud: blue-gray (sky with clouds)
+    readonly property color chartCloudCover: "#78909c"   // Muted blue-gray -- clouds
+
+    // Font sizes -- all 2x the legacy base sizes so the app reads comfortably
+    // at typical viewing distances on a 14" 2560x1600 display.
+    readonly property int fontAxisLabel: 18   // Chart axis tick labels (was 9)
+    readonly property int fontLegend: 20      // Chart legend text (was 10)
+    readonly property int fontSecondary: 22   // Toolbar status text (was 11)
+    readonly property int fontBody: 26        // Primary UI text, tabs, combobox (was 13)
+    readonly property int fontTitle: 32       // Section/panel titles (was 16)
+    readonly property int fontDisplay: 56     // Temperature large display (was 28)
 
     // Corner radii
     readonly property int radiusSmall: 4
