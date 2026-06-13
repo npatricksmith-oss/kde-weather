@@ -53,12 +53,15 @@ QML declarative bindings can't detect when a Python `@Slot` method returns diffe
 Open-Meteo returns hourly data from local midnight. `HourlyModel.update()` scans forward to find the first hour ≥ current hour and stores it as `start_idx`. Charts and `CurrentConditions` use this offset so "now" appears at the left edge, not midnight.
 
 ### Worker Thread Safety
-Both the thread and worker objects must be stored as instance attributes on `AppController`. If only the thread is retained, Python's GC destroys the worker while the HTTP request is in-flight, causing a segfault when the worker tries to emit a signal.
+Both the thread and worker objects must stay referenced until the thread has **fully stopped**. If Python's GC destroys the worker while the HTTP request is in-flight, the worker segfaults emitting its signal; if it destroys a *running* `QThread`, Qt calls `qFatal("QThread: Destroyed while thread is still running")` → SIGABRT.
 
-```python
-# Correct — store BOTH refs
-self._forecast_thread, self._forecast_worker = run_in_thread(worker)
-```
+The rules:
+- Every in-flight `(thread, worker)` pair is appended to `AppController._active` by `_spawn()`. A list (not one attribute per request) means a rapid second refresh can't overwrite — and thus drop — a still-running thread.
+- `_reap()` removes a pair only after its `thread.finished` fires (on the main thread), so references are released only once the thread has stopped.
+- `worker.finished`/`worker.error` connect to `thread.quit` (a `QObject` slot, so the cross-thread connection is queued correctly). Never connect a plain Python closure that calls `thread.wait()` — a non-`QObject` functor connects as a *DirectConnection* and would run in the worker thread, where `wait()` on itself is a no-op.
+- `AppController.shutdown()` (called from `main.py` after `app.exec()`) quits and joins any still-running threads before teardown, with a bounded wait + `terminate()` fallback so a stalled socket can't hang quit.
+
+Regression test: `tests/test_thread_shutdown.py` (run directly; no framework) reproduces both crashes in subprocesses and asserts clean exits.
 
 ### Why Fusion Style (not Breeze)
 PySide6's `Fusion` style accepts custom QPalettes; the `Breeze` style ignores them. All Breeze Dark colors are applied manually via `QPalette` in `main.py` to guarantee correct appearance outside KDE.

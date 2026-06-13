@@ -71,6 +71,12 @@ def main():
 
     ret = app.exec()
 
+    # Join background worker threads while everything is still alive.  If a
+    # forecast/geocode request is in-flight when the user quits, the QThread
+    # is still running; letting `del controller` below GC it would make Qt
+    # abort with "QThread: Destroyed while thread is still running".
+    controller.shutdown()
+
     # PySide6 crashes on shutdown if Python's GC destroys Qt objects in the
     # wrong order (engine refs QML objects that ref the controller).  We
     # force the correct teardown sequence: engine first, then controller,

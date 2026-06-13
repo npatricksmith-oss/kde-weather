@@ -59,18 +59,25 @@ def run_in_thread(worker):
     """Move a worker QObject to a new QThread and start it.
 
     Returns (thread, worker) -- the caller MUST store both references
-    to prevent premature garbage collection.  The thread is stopped and
-    cleaned up when the worker emits finished or error.
+    to prevent premature garbage collection (see AppController._active).
+
+    How the thread stops:
+      - worker.finished / worker.error -> thread.quit()
+        thread.quit() is a QObject slot and thread-safe, so emitting from the
+        worker thread queues it correctly; the thread's event loop then exits.
+      - Once exec() returns, the thread emits finished() on the main thread,
+        which the caller uses to drop its references and join the thread.
+
+    Why not the old approach: the previous code connected a plain Python
+    closure that called thread.wait().  A non-QObject functor connects as a
+    DirectConnection, so that ran INSIDE the worker thread -- and wait()ing on
+    your own thread is a no-op, so the thread was never actually joined.
     """
     thread = QThread()
     worker.moveToThread(thread)
     thread.started.connect(worker.run)
-
-    def cleanup():
-        thread.quit()
-        thread.wait()
-
-    worker.finished.connect(cleanup)
-    worker.error.connect(cleanup)
+    # Stop the thread's event loop once the work is done (success or failure).
+    worker.finished.connect(thread.quit)
+    worker.error.connect(thread.quit)
     thread.start()
     return thread, worker

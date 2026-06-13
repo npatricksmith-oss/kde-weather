@@ -55,13 +55,13 @@ class AppController(QObject):
         self._error = ""
         self._last_update = ""
 
-        # We must hold references to both the thread AND the worker to
-        # prevent Python's GC from destroying them while the HTTP request
-        # is in-flight.  Storing them as instance attrs keeps them alive.
-        self._forecast_thread = None
-        self._forecast_worker = None
-        self._geocode_thread = None
-        self._geocode_worker = None
+        # Every in-flight (thread, worker) pair lives here.  We must hold
+        # references to BOTH until the thread has fully stopped, or Python's GC
+        # destroys a running QThread -> qFatal -> SIGABRT.  Using a list (not a
+        # single attribute per kind) means a rapid second refresh can't drop the
+        # first request's thread while it is still running -- each pair is
+        # removed only by _reap(), after its thread emits finished().
+        self._active = []
 
         # Auto-refresh timer -- restarts whenever the interval changes
         self._refresh_timer = QTimer(self)
@@ -145,8 +145,7 @@ class AppController(QObject):
         worker = ForecastWorker(loc["lat"], loc["lon"])
         worker.finished.connect(self._on_forecast)
         worker.error.connect(self._on_forecast_error)
-        # Store both refs -- see comment on _forecast_thread above
-        self._forecast_thread, self._forecast_worker = run_in_thread(worker)
+        self._spawn(worker)
 
     def _on_forecast(self, data: dict):
         """Handle successful API response -- update all data models."""
@@ -178,7 +177,7 @@ class AppController(QObject):
         worker = GeocodeWorker(query)
         worker.finished.connect(self._on_geocode)
         worker.error.connect(self._on_geocode_error)
-        self._geocode_thread, self._geocode_worker = run_in_thread(worker)
+        self._spawn(worker)
 
     def _on_geocode(self, results: list):
         self._geocode_model.update(results)
@@ -218,3 +217,55 @@ class AppController(QObject):
     def setActiveLocation(self, index):
         """Switch to a different saved location (triggers refresh via signal)."""
         self._settings.activeLocationIndex = index
+
+    # --- Background thread lifecycle ---
+
+    def _spawn(self, worker):
+        """Start a worker on its own thread and track it until it finishes.
+
+        We keep the (thread, worker) pair in self._active so neither is GC'd
+        while running, and reap it once the thread has fully stopped.
+        """
+        thread, worker = run_in_thread(worker)
+        self._active.append((thread, worker))
+        # thread.finished is emitted on the main thread once exec() returns,
+        # so _reap runs where it's safe to drop the references and join.
+        thread.finished.connect(lambda t=thread: self._reap(t))
+
+    def _reap(self, thread):
+        """Drop references to a thread that has finished running.
+
+        Called on the main thread via thread.finished.  The thread is no
+        longer running, so removing the last reference (and letting GC delete
+        the QThread) is safe -- this is what avoids the "destroyed while
+        running" abort without ever blocking the event loop.
+        """
+        thread.wait()  # returns immediately; just guarantees a clean join
+        self._active = [(t, w) for (t, w) in self._active if t is not thread]
+
+    # --- Shutdown ---
+
+    def shutdown(self):
+        """Stop all background threads before the app tears down.
+
+        What: quit + join every active worker QThread (and stop the timer).
+        Why:  a QThread destroyed while still running makes Qt call qFatal()
+              ("QThread: Destroyed while thread is still running") -> SIGABRT.
+              That happens if the user quits while an HTTP request is in-flight,
+              because main.py's `del controller` then GC's a running QThread.
+        How:  ask each thread's event loop to quit, then wait() to join it.
+              The worker's run() is a blocking requests.get(), so quit() only
+              takes effect once that call returns; we bound the wait and fall
+              back to terminate() so shutdown can't hang on a stalled network.
+        """
+        self._refresh_timer.stop()
+        # Copy the list: _reap() mutates self._active as threads finish.
+        for thread, _worker in list(self._active):
+            if not thread.isRunning():
+                continue
+            thread.quit()
+            # Join, bounded to 3s. requests has its own 10-15s timeout, but we
+            # don't want quitting the app to block that long on a hung socket.
+            if not thread.wait(3000):
+                thread.terminate()  # last resort; we're exiting anyway
+                thread.wait()
