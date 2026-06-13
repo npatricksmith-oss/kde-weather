@@ -17,3 +17,10 @@ kde-weather = "kde_weather.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# QML files are loaded at runtime via Path(__file__).parent / "qml" (see main.py).
+# They are non-Python data, so an editable install finds them on the source tree
+# but a real wheel install (e.g. the Arch package) would omit them without this.
+# The ** globs recurse into components/, views/, and theme/ (incl. the qmldir file).
+[tool.setuptools.package-data]
+kde_weather = ["qml/**/*.qml", "qml/**/qmldir"]

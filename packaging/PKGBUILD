@@ -1,0 +1,69 @@
+# Maintainer: npatricksmith <npatricksmith@gmail.com>
+#
+# What: an Arch (makepkg) package for the kde-weather app.
+# How:  builds the local working tree (the parent repo) into a wheel, then
+#       installs it under /usr.
+# Why:  replaces the venv + install.sh + ~/.local/bin wrapper with a real,
+#       pacman-managed package. PySide6/qt6-charts come from pacman and the venv
+#       only used --system-site-packages, so a plain system install against the
+#       distro Python works the same way without a private venv.
+#
+# Note: this PKGBUILD lives in packaging/ on purpose. makepkg insists on owning
+#       $startdir/src and $startdir/pkg as scratch dirs; the project already has a
+#       src/ directory, so building from the repo root would collide. Keeping it in
+#       a subdir means makepkg's scratch dirs sit under packaging/ instead.
+
+pkgname=kde-weather
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="KDE Plasma weather app with Open-Meteo API (PySide6 + QML)"
+arch=('any')
+url="https://github.com/npatricksmith-oss/kde-weather"
+# No LICENSE file shipped upstream yet; mark custom so makepkg/namcap don't assume one.
+license=('custom')
+# Runtime deps. pyside6 + qt6-charts are not on PyPI and must come from pacman;
+# noto-fonts-emoji supplies the color glyphs WeatherIcon.qml renders.
+depends=('python'
+         'pyside6'
+         'qt6-charts'
+         'python-requests'
+         'noto-fonts-emoji')
+# PEP 517 build chain. --no-isolation (below) uses these from the system.
+makedepends=('python-build'
+             'python-installer'
+             'python-wheel'
+             'python-setuptools')
+# Built from the local working tree (no remote source), so source=() is empty.
+source=()
+
+# The project root is one level up from this PKGBUILD.
+_projectroot="$startdir/.."
+
+prepare() {
+    # Copy only what the wheel needs out of the working tree into $srcdir, so the
+    # build runs in makepkg's sandbox and never writes dist/ or build/ back into
+    # the repo. Excludes caches/venv/egg-info that would otherwise pollute the wheel.
+    rm -rf "$srcdir/build-tree"
+    mkdir -p "$srcdir/build-tree"
+    cp -r "$_projectroot/src" "$_projectroot/pyproject.toml" \
+          "$_projectroot/kde-weather.desktop" "$srcdir/build-tree/"
+    find "$srcdir/build-tree" -type d \( -name __pycache__ -o -name '*.egg-info' \) \
+        -prune -exec rm -rf {} +
+}
+
+build() {
+    cd "$srcdir/build-tree"
+    # Build a wheel using the system build backend (no network/venv).
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "$srcdir/build-tree"
+    # Install the wheel into the package root. This also drops the
+    # `kde-weather` console-script (from [project.scripts]) into /usr/bin.
+    python -m installer --destdir="$pkgdir" dist/*.whl
+
+    # Desktop entry so it appears in the KDE app launcher.
+    install -Dm644 kde-weather.desktop \
+        "$pkgdir/usr/share/applications/kde-weather.desktop"
+}
