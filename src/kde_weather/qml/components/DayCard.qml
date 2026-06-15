@@ -22,6 +22,13 @@ Rectangle {
     property string sunrise: ""
     property string sunset: ""
 
+    // Selection highlight + click handling for the 7-Day detail panel.
+    property bool selected: false
+    signal clicked()
+
+    border.width: root.selected ? 3 : 0
+    border.color: Theme.accent
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Theme.spacingMedium
@@ -93,5 +100,13 @@ Rectangle {
         }
 
         Item { Layout.fillHeight: true }
+    }
+
+    // Full-card click target. Placed last so it sits above the ColumnLayout
+    // (whose children have no mouse handlers) and receives the click.
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.clicked()
     }
 }
