@@ -28,7 +28,9 @@ from datetime import datetime
 from PySide6.QtCore import QObject, QTimer, Signal, Slot, Property
 
 from .settings import Settings
-from .api.worker import ForecastWorker, GeocodeWorker, run_in_thread
+from .api.worker import ForecastWorker, GeocodeWorker, NwsWorker, run_in_thread
+from .api.nws import periods_for_date, alerts_for_date, format_expires
+from .models.day_detail import DayDetail
 from .models.hourly_model import HourlyModel
 from .models.daily_model import DailyModel
 from .models.location_model import LocationModel
@@ -51,6 +53,11 @@ class AppController(QObject):
         self._geocode_model = GeocodeModel(self)
         self._current = CurrentConditions(self)
 
+        # NWS day-detail state for the 7-Day tab (app.dayDetail), plus a
+        # per-location in-memory cache of the (one-shot) NWS fetch result.
+        self._day_detail = DayDetail(self)
+        self._nws_cache = {}  # keyed by (lat, lon)
+
         self._loading = False
         self._error = ""
         self._last_update = ""
@@ -72,6 +79,8 @@ class AppController(QObject):
         self._settings.refreshIntervalChanged.connect(self._update_timer_interval)
         self._settings.locationsChanged.connect(self._sync_location_model)
         self._settings.activeLocationIndexChanged.connect(self.refresh)
+        # Collapse the day-detail panel when the active location changes.
+        self._settings.activeLocationIndexChanged.connect(self._day_detail.clear)
 
         # Initialize location model from saved settings
         self._sync_location_model()
@@ -115,6 +124,10 @@ class AppController(QObject):
     @Property(QObject, constant=True)
     def currentConditions(self):
         return self._current
+
+    @Property(QObject, constant=True)
+    def dayDetail(self):
+        return self._day_detail
 
     @Property(bool, notify=loadingChanged)
     def loading(self):
@@ -217,6 +230,77 @@ class AppController(QObject):
     def setActiveLocation(self, index):
         """Switch to a different saved location (triggers refresh via signal)."""
         self._settings.activeLocationIndex = index
+
+    @Slot(str)
+    def selectDay(self, date_str):
+        """Expand the NWS detail for a day in the 7-Day tab.
+
+        Clicking the already-open day collapses it. Otherwise we show the day
+        and either serve its detail from the per-location cache or kick off a
+        single background NWS fetch (the result covers every day).
+        """
+        if date_str == self._day_detail.selectedDate:
+            self._day_detail.clear()
+            return
+
+        self._day_detail.select(date_str)
+        loc = self._settings.activeLocation
+        if loc is None:
+            return
+
+        key = (loc["lat"], loc["lon"])
+        cached = self._nws_cache.get(key)
+        if cached is not None:
+            self._populate_detail(date_str, cached)
+            return
+
+        self._day_detail.set_loading()
+        worker = NwsWorker(loc["lat"], loc["lon"])
+        worker.finished.connect(
+            lambda payload, k=key, d=date_str: self._on_nws(k, d, payload)
+        )
+        worker.error.connect(self._on_nws_error)
+        self._spawn(worker)
+
+    def _on_nws(self, key, date_str, payload):
+        """Cache a completed NWS fetch and populate the panel if still relevant."""
+        self._nws_cache[key] = payload
+        loc = self._settings.activeLocation
+        if loc is None or (loc["lat"], loc["lon"]) != key:
+            return  # active location changed while the request was in flight
+        if self._day_detail.selectedDate == date_str:
+            self._populate_detail(date_str, payload)
+
+    def _on_nws_error(self, msg):
+        self._day_detail.set_error(msg)
+
+    def _populate_detail(self, date_str, payload):
+        """Fill DayDetail from a cached NWS payload for the given date."""
+        if not payload.get("available", False):
+            self._day_detail.set_unavailable()
+            return
+
+        selected = periods_for_date(payload["periods"], date_str)
+        period_list = []
+        for period in (selected["day"], selected["night"]):
+            if period:
+                period_list.append({
+                    "name": period.get("name", ""),
+                    "text": period.get("detailedForecast", ""),
+                })
+
+        alert_list = []
+        for props in alerts_for_date(payload["alerts"], date_str):
+            end = props.get("expires") or props.get("ends")
+            alert_list.append({
+                "event": props.get("event", "Alert"),
+                "headline": props.get("headline", ""),
+                "severity": props.get("severity", "Unknown"),
+                "text": props.get("description", ""),
+                "expiresText": format_expires(end),
+            })
+
+        self._day_detail.set_data(period_list, alert_list)
 
     # --- Background thread lifecycle ---
 
