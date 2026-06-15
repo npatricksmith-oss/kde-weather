@@ -9,6 +9,7 @@ through this object:
   - app.locationModel    (LocationModel)
   - app.geocodeModel     (GeocodeModel)
   - app.currentConditions (CurrentConditions)
+  - app.dayDetail        (DayDetail QObject -- 7-Day NWS detail panel)
   - app.refresh()        (trigger forecast fetch)
   - app.searchCity(q)    (trigger geocode search)
   - app.loading / app.error / app.lastUpdate (UI state)
@@ -56,7 +57,7 @@ class AppController(QObject):
         # NWS day-detail state for the 7-Day tab (app.dayDetail), plus a
         # per-location in-memory cache of the (one-shot) NWS fetch result.
         self._day_detail = DayDetail(self)
-        self._nws_cache = {}  # keyed by (lat, lon)
+        self._nws_cache = {}  # keyed by (lat, lon); never invalidated, panel collapses on location change
 
         self._loading = False
         self._error = ""
@@ -259,7 +260,7 @@ class AppController(QObject):
         worker.finished.connect(
             lambda payload, k=key, d=date_str: self._on_nws(k, d, payload)
         )
-        worker.error.connect(self._on_nws_error)
+        worker.error.connect(lambda msg, k=key: self._on_nws_error(msg, k))
         self._spawn(worker)
 
     def _on_nws(self, key, date_str, payload):
@@ -271,7 +272,12 @@ class AppController(QObject):
         if self._day_detail.selectedDate == date_str:
             self._populate_detail(date_str, payload)
 
-    def _on_nws_error(self, msg):
+    def _on_nws_error(self, msg: str, key):
+        # Ignore a failure whose location is no longer active, mirroring the
+        # guard in _on_nws so a stale error can't overwrite the current panel.
+        loc = self._settings.activeLocation
+        if loc is None or (loc["lat"], loc["lon"]) != key:
+            return
         self._day_detail.set_error(msg)
 
     def _populate_detail(self, date_str, payload):

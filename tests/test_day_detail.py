@@ -20,6 +20,7 @@ def _child():
     from kde_weather.backend.api import worker
     worker.fetch_forecast = lambda lat, lon: {"hourly": {}, "daily": {}}
     worker.fetch_geocode = lambda query, count=5: []
+    worker.fetch_nws_details = lambda lat, lon: {"available": True, "periods": [], "alerts": []}
 
     from kde_weather.backend.app_controller import AppController
 
