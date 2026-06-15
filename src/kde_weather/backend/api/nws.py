@@ -34,7 +34,7 @@ def _parse_iso(ts):
         return None
     try:
         return datetime.fromisoformat(ts)
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 
 

@@ -51,6 +51,26 @@ def test_alerts_for_date_excludes_outside_window():
     assert res == [], res
 
 
+def test_alerts_for_date_accepts_unwrapped_props_and_onset_fallback():
+    # Unwrapped property dict (no 'properties' wrapper) using onset/ends fallback.
+    alerts = [{
+        "event": "Flood Watch",
+        "onset": "2026-06-17T08:00:00-04:00",
+        "ends": "2026-06-17T20:00:00-04:00"}]
+    res = nws.alerts_for_date(alerts, "2026-06-17")
+    assert len(res) == 1 and res[0]["event"] == "Flood Watch", res
+
+
+def test_alerts_for_date_includes_fully_encompassing_alert():
+    # Alert starts before the day and ends after it -> active all day.
+    alerts = [{"properties": {
+        "event": "Coastal Flood Warning",
+        "effective": "2026-06-16T00:00:00-04:00",
+        "expires": "2026-06-19T00:00:00-04:00"}}]
+    res = nws.alerts_for_date(alerts, "2026-06-17")
+    assert len(res) == 1 and res[0]["event"] == "Coastal Flood Warning", res
+
+
 def test_format_expires_human_readable():
     assert nws.format_expires("2026-06-18T18:00:00-04:00") == "until Thu 6:00 PM", \
         nws.format_expires("2026-06-18T18:00:00-04:00")
