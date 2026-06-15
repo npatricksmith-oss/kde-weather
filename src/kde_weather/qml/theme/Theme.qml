@@ -30,6 +30,7 @@ QtObject {
     readonly property color accent: "#3daee9"        // KDE Breeze accent blue
     readonly property color accentHover: "#4dc0ff"   // Lighter accent for hover
     readonly property color error: "#da4453"         // Error text, delete buttons
+    readonly property color warning: "#f67400"       // Breeze orange -- moderate alerts
     readonly property color success: "#27ae60"       // Unused currently, reserved
 
     // Chart line colors -- natural weather associations, no color reused across types.
