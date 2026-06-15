@@ -33,8 +33,8 @@ Rectangle {
     id: root
     color: Theme.surface
     radius: Theme.radiusMedium
-    // Taller than the legacy 220px to accommodate 2x larger font labels
-    height: 320
+    // Sized for the right-sized (~1.4x) chart fonts; was 320 for the old 2x fonts.
+    height: 260
 
     property string title: ""
     property string unit: ""

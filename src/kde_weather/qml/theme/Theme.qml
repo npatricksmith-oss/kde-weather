@@ -53,14 +53,16 @@ QtObject {
     // Cloud: blue-gray (sky with clouds)
     readonly property color chartCloudCover: "#78909c"   // Muted blue-gray -- clouds
 
-    // Font sizes -- all 2x the legacy base sizes so the app reads comfortably
-    // at typical viewing distances on a 14" 2560x1600 display.
-    readonly property int fontAxisLabel: 18   // Chart axis tick labels (was 9)
-    readonly property int fontLegend: 20      // Chart legend text (was 10)
-    readonly property int fontSecondary: 22   // Toolbar status text (was 11)
-    readonly property int fontBody: 26        // Primary UI text, tabs, combobox (was 13)
-    readonly property int fontTitle: 32       // Section/panel titles (was 16)
-    readonly property int fontDisplay: 56     // Temperature large display (was 28)
+    // Font sizes -- comfortable fixed sizes (~1.4x the original base sizes).
+    // The previous values were a full 2x and read as oversized, which made the
+    // window feel cramped the moment it shrank.  Text stays fixed/readable and
+    // the layout reflows; it does not scale with the window.
+    readonly property int fontAxisLabel: 13   // Chart axis tick labels (was 18)
+    readonly property int fontLegend: 14      // Chart legend text (was 20)
+    readonly property int fontSecondary: 14   // Toolbar status text (was 22)
+    readonly property int fontBody: 16        // Primary UI text, tabs, combobox (was 26)
+    readonly property int fontTitle: 22       // Section/panel titles (was 32)
+    readonly property int fontDisplay: 40     // Temperature large display (was 56)
 
     // Corner radii
     readonly property int radiusSmall: 4
