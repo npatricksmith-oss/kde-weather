@@ -112,3 +112,45 @@ def format_expires(ts):
         return ""
     # %-I uses the non-zero-padded hour (e.g. '6' not '06') on Linux
     return dt.strftime("until %a %-I:%M %p")
+
+
+def fetch_nws_details(lat, lon):
+    """Fetch NWS day/night periods + active alerts for a point.
+
+    What: Makes up to three requests — /points, the forecast URL it returns,
+          and /alerts/active — and returns the combined result.
+    Why:  NWS is US-only; the points endpoint returns 404 for non-US
+          coordinates, so we use that as the availability signal rather than
+          raising an exception (the caller doesn't need to treat this as an
+          error).
+    How:  Any 404 on the points call → available=False (outside NWS coverage).
+          Any other HTTP/network failure raises so NwsWorker can surface it as
+          an error state. The three requests all send the required User-Agent.
+    Returns {"available": bool, "periods": list, "alerts": list}.
+    """
+    points = requests.get(
+        POINTS_URL.format(lat=lat, lon=lon), headers=_HEADERS, timeout=15
+    )
+    if points.status_code == 404:
+        # Outside NWS coverage (non-US location); not an error, just unavailable
+        return {"available": False, "periods": [], "alerts": []}
+    points.raise_for_status()
+    forecast_url = points.json().get("properties", {}).get("forecast")
+    if not forecast_url:
+        # Points endpoint succeeded but returned no forecast URL; treat as unavailable
+        return {"available": False, "periods": [], "alerts": []}
+
+    forecast = requests.get(forecast_url, headers=_HEADERS, timeout=15)
+    forecast.raise_for_status()
+    periods = forecast.json().get("properties", {}).get("periods", [])
+
+    alerts_resp = requests.get(
+        ALERTS_URL,
+        headers=_HEADERS,
+        params={"point": f"{lat},{lon}", "status": "actual"},
+        timeout=15,
+    )
+    alerts_resp.raise_for_status()
+    alerts = alerts_resp.json().get("features", [])
+
+    return {"available": True, "periods": periods, "alerts": alerts}

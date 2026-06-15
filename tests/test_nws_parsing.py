@@ -78,6 +78,64 @@ def test_format_expires_human_readable():
     assert nws.format_expires("garbage") == ""
 
 
+class _FakeResp:
+    def __init__(self, status=200, payload=None):
+        self.status_code = status
+        self._payload = payload or {}
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise AssertionError(f"raise_for_status called on {self.status_code}")
+
+    def json(self):
+        return self._payload
+
+
+def _install_fake_get(mapping):
+    """Replace nws.requests.get with a URL-dispatching fake; return a restore fn.
+
+    `mapping` maps a substring of the URL to a _FakeResp.
+    """
+    orig = nws.requests.get
+
+    def fake_get(url, *args, **kwargs):
+        for needle, resp in mapping.items():
+            if needle in url:
+                return resp
+        raise AssertionError(f"unexpected URL {url!r}")
+
+    nws.requests.get = fake_get
+    return lambda: setattr(nws.requests, "get", orig)
+
+
+def test_fetch_unavailable_when_point_404():
+    restore = _install_fake_get({"/points/": _FakeResp(status=404)})
+    try:
+        res = nws.fetch_nws_details(0.0, 0.0)
+    finally:
+        restore()
+    assert res == {"available": False, "periods": [], "alerts": []}, res
+
+
+def test_fetch_happy_path_returns_periods_and_alerts():
+    mapping = {
+        "/points/": _FakeResp(payload={
+            "properties": {"forecast": "https://api.weather.gov/gridpoints/X/1,1/forecast"}}),
+        "/forecast": _FakeResp(payload={
+            "properties": {"periods": [{"name": "Today", "isDaytime": True}]}}),
+        "/alerts/active": _FakeResp(payload={
+            "features": [{"properties": {"event": "Test Warning"}}]}),
+    }
+    restore = _install_fake_get(mapping)
+    try:
+        res = nws.fetch_nws_details(43.0, -76.0)
+    finally:
+        restore()
+    assert res["available"] is True, res
+    assert res["periods"][0]["name"] == "Today", res
+    assert res["alerts"][0]["properties"]["event"] == "Test Warning", res
+
+
 def _run():
     tests = [v for k, v in sorted(globals().items())
              if k.startswith("test_") and callable(v)]
