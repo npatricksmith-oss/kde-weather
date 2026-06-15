@@ -18,6 +18,7 @@ AppController stores both in _forecast_thread/_forecast_worker.
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 
 from .open_meteo import fetch_forecast, fetch_geocode
+from .nws import fetch_nws_details
 
 
 class ForecastWorker(QObject):
@@ -51,6 +52,24 @@ class GeocodeWorker(QObject):
         try:
             results = fetch_geocode(self._query)
             self.finished.emit(results)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+class NwsWorker(QObject):
+    finished = Signal(dict)  # Emits {"available", "periods", "alerts"}
+    error = Signal(str)      # Emits the exception message on failure
+
+    def __init__(self, lat, lon):
+        super().__init__()
+        self._lat = lat
+        self._lon = lon
+
+    @Slot()
+    def run(self):
+        try:
+            data = fetch_nws_details(self._lat, self._lon)
+            self.finished.emit(data)
         except Exception as e:
             self.error.emit(str(e))
 
