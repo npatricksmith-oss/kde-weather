@@ -36,7 +36,7 @@ ColumnLayout {
 
     // Non-US / uncovered point
     Text {
-        visible: !app.dayDetail.loading && !app.dayDetail.available
+        visible: !app.dayDetail.loading && !app.dayDetail.available && app.dayDetail.error === ""
         text: "Detailed National Weather Service forecasts are only available for US locations."
         wrapMode: Text.WordWrap
         Layout.fillWidth: true
