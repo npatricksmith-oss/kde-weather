@@ -1,0 +1,79 @@
+#!/usr/bin/env python
+"""Tests for the NWS client and its pure parsing helpers.
+
+No framework; run directly:
+    PYTHONPATH=src python tests/test_nws_parsing.py
+Each test_* function raises AssertionError on failure; the runner reports
+results and exits non-zero if any fail.
+"""
+import os
+import sys
+
+sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "src")))
+
+from kde_weather.backend.api import nws
+
+
+def test_periods_for_date_selects_day_and_night():
+    periods = [
+        {"name": "Wednesday", "isDaytime": True,
+         "startTime": "2026-06-17T06:00:00-04:00", "detailedForecast": "Sunny."},
+        {"name": "Wednesday Night", "isDaytime": False,
+         "startTime": "2026-06-17T18:00:00-04:00", "detailedForecast": "Clear."},
+        {"name": "Thursday", "isDaytime": True,
+         "startTime": "2026-06-18T06:00:00-04:00", "detailedForecast": "Cloudy."},
+    ]
+    res = nws.periods_for_date(periods, "2026-06-17")
+    assert res["day"]["name"] == "Wednesday", res
+    assert res["night"]["name"] == "Wednesday Night", res
+
+
+def test_periods_for_date_missing_returns_none():
+    res = nws.periods_for_date([], "2026-06-17")
+    assert res == {"day": None, "night": None}, res
+
+
+def test_alerts_for_date_includes_overlapping():
+    alerts = [{"properties": {
+        "event": "Winter Storm Warning",
+        "effective": "2026-06-17T12:00:00-04:00",
+        "expires": "2026-06-18T06:00:00-04:00"}}]
+    res = nws.alerts_for_date(alerts, "2026-06-17")
+    assert len(res) == 1 and res[0]["event"] == "Winter Storm Warning", res
+
+
+def test_alerts_for_date_excludes_outside_window():
+    alerts = [{"properties": {
+        "event": "Heat Advisory",
+        "effective": "2026-06-20T12:00:00-04:00",
+        "expires": "2026-06-21T06:00:00-04:00"}}]
+    res = nws.alerts_for_date(alerts, "2026-06-17")
+    assert res == [], res
+
+
+def test_format_expires_human_readable():
+    assert nws.format_expires("2026-06-18T18:00:00-04:00") == "until Thu 6:00 PM", \
+        nws.format_expires("2026-06-18T18:00:00-04:00")
+    assert nws.format_expires("") == ""
+    assert nws.format_expires("garbage") == ""
+
+
+def _run():
+    tests = [v for k, v in sorted(globals().items())
+             if k.startswith("test_") and callable(v)]
+    failed = 0
+    for t in tests:
+        try:
+            t()
+            print(f"[PASS] {t.__name__}")
+        except AssertionError as e:
+            failed += 1
+            print(f"[FAIL] {t.__name__}: {e}")
+    if failed:
+        print(f"\n{failed} of {len(tests)} failed")
+        sys.exit(1)
+    print(f"\nAll {len(tests)} passed")
+
+
+if __name__ == "__main__":
+    _run()
