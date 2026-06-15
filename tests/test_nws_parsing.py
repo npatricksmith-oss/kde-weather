@@ -85,7 +85,7 @@ class _FakeResp:
 
     def raise_for_status(self):
         if self.status_code >= 400:
-            raise AssertionError(f"raise_for_status called on {self.status_code}")
+            raise nws.requests.exceptions.HTTPError(f"HTTP {self.status_code}")
 
     def json(self):
         return self._payload
@@ -112,6 +112,16 @@ def test_fetch_unavailable_when_point_404():
     restore = _install_fake_get({"/points/": _FakeResp(status=404)})
     try:
         res = nws.fetch_nws_details(0.0, 0.0)
+    finally:
+        restore()
+    assert res == {"available": False, "periods": [], "alerts": []}, res
+
+
+def test_fetch_unavailable_when_no_forecast_url():
+    # Points endpoint returns 200 but its properties lack a forecast URL.
+    restore = _install_fake_get({"/points/": _FakeResp(payload={"properties": {}})})
+    try:
+        res = nws.fetch_nws_details(1.0, 2.0)
     finally:
         restore()
     assert res == {"available": False, "periods": [], "alerts": []}, res

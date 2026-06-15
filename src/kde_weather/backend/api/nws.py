@@ -128,8 +128,11 @@ def fetch_nws_details(lat, lon):
           an error state. The three requests all send the required User-Agent.
     Returns {"available": bool, "periods": list, "alerts": list}.
     """
+    # NWS recommends 4 decimal places; longer coords can be rejected/truncated.
     points = requests.get(
-        POINTS_URL.format(lat=lat, lon=lon), headers=_HEADERS, timeout=15
+        POINTS_URL.format(lat=round(lat, 4), lon=round(lon, 4)),
+        headers=_HEADERS,
+        timeout=15,
     )
     if points.status_code == 404:
         # Outside NWS coverage (non-US location); not an error, just unavailable
